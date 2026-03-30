@@ -1,10 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
-<suite name="Selenium Assignment Test Suite" parallel="false">
+<suite name="NEU Selenium Suite" verbose="1">
 
-    <test name="All Tests">
+    <test name="Scenario1 - Download Transcript">
+        <classes>
+            <class name="tests.Scenario1_TranscriptTest"/>
+        </classes>
+    </test>
+
+    <test name="Scenario2 - Canvas Calendar Events">
         <classes>
             <class name="tests.Scenario2_CalendarTest"/>
         </classes>
     </test>
+
+    <test name="Scenario5 - Update Academic Calendar">
+        <classes>
+            <class name="tests.Scenario5_AcademicCalendarTest"/>
+        </classes>
+    </test>
+
 </suite>
