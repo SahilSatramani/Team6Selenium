@@ -7,6 +7,7 @@
             <class name="tests.Scenario1_TranscriptTest"/>
             <class name="tests.Scenario2_CalendarTest"/>
             <class name="tests.Scenario3_LibraryTest"/>
+            <class name="tests.Scenario4_DatasetDownloadTest"/>
             <class name="tests.Scenario5_AcademicCalendarTest"/>
         </classes>
     </test>

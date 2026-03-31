@@ -14,6 +14,7 @@
     <maven.compiler.target>11</maven.compiler.target>
     <selenium.version>4.41.0</selenium.version>
     <testng.version>7.12.0</testng.version>
+    <extent.version>5.1.1</extent.version>
   </properties>
 
   <dependencies>
@@ -58,6 +59,13 @@
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-simple</artifactId>
       <version>2.0.17</version>
+    </dependency>
+
+    <!-- ExtentReports -->
+    <dependency>
+      <groupId>com.aventstack</groupId>
+      <artifactId>extentreports</artifactId>
+      <version>${extent.version}</version>
     </dependency>
   </dependencies>
 
