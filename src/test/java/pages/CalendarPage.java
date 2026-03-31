@@ -56,7 +56,7 @@ public class CalendarPage {
     public void enterDate(String date) {
         WebElement element = wait.until(ExpectedConditions.visibilityOfElementLocated(dateField));
         element.click();
-        element.sendKeys(Keys.CONTROL + "a");
+        element.sendKeys(Keys.chord(getSelectAllKey(), "a"));
         element.sendKeys(date);
     }
 
@@ -64,16 +64,15 @@ public class CalendarPage {
     public void enterStartTime(String startTime) {
         WebElement element = wait.until(ExpectedConditions.visibilityOfElementLocated(startTimeField));
         element.click();
-        element.sendKeys(Keys.CONTROL + "a");
+        element.sendKeys(Keys.chord(getSelectAllKey(), "a"));
         element.sendKeys(startTime);
     }
 
     // enter end time
     public void enterEndTime(String endTime) {
-        System.out.println("  → Entering end time: " + endTime);
         WebElement element = wait.until(ExpectedConditions.visibilityOfElementLocated(endTimeField));
         element.click();
-        element.sendKeys(Keys.CONTROL + "a");
+        element.sendKeys(Keys.chord(getSelectAllKey(), "a"));
         element.sendKeys(endTime);
     }
 
@@ -111,6 +110,9 @@ public class CalendarPage {
 
     }
 
-
+    public Keys getSelectAllKey() {
+        String os = System.getProperty("os.name").toLowerCase();
+        return os.contains("mac") ? Keys.COMMAND : Keys.CONTROL;
+    }
 
 }
