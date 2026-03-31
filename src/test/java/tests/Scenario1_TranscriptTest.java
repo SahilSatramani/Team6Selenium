@@ -25,26 +25,22 @@ public class Scenario1_TranscriptTest extends BaseTest {
         WebDriverWait longWait = new WebDriverWait(driver, Duration.ofSeconds(90));
 
         // ----------------------------------------------------------------
-        // STEP 1: Read credentials from Excel (no hardcoded values)
+        // STEP 1: Read credentials and transcript settings from Excel
         // ----------------------------------------------------------------
-        System.out.println("Step 1: Reading credentials from Excel");
+        System.out.println("Step 1: Reading data from Excel");
         String credPath = "src/test/resources/testdata/credentials.xlsx";
-        Assert.assertTrue(new File(credPath).exists(),
-                "Credentials file not found at: " + credPath);
+        Assert.assertTrue(new File(credPath).exists(), "credentials.xlsx not found");
 
-        List<Map<String, String>> credentials = ExcelReader.readExcel(credPath);
-        // Full email stored in Excel e.g. satramani.s@northeastern.edu
-        String fullEmail = credentials.get(0).get("Username");
-        String password  = PasswordUtil.decode(credentials.get(0).get("Password"));
+        List<Map<String, String>> creds = ExcelReader.readExcel(credPath);
+        String fullEmail = creds.get(0).get("Username");
+        String password  = PasswordUtil.decode(creds.get(0).get("Password"));
 
-        // Read transcript settings from Excel
-        String transcriptPath = "src/test/resources/testdata/scenario1_data.xlsx";
-        Assert.assertTrue(new File(transcriptPath).exists(),
-                "Scenario1 data file not found at: " + transcriptPath);
+        String s1Path = "src/test/resources/testdata/scenario1_data.xlsx";
+        Assert.assertTrue(new File(s1Path).exists(), "scenario1_data.xlsx not found");
 
-        List<Map<String, String>> s1Data = ExcelReader.readExcel(transcriptPath);
-        String transcriptLevel = s1Data.get(0).get("TranscriptLevel"); // e.g. "Graduate"
-        String transcriptType  = s1Data.get(0).get("TranscriptType");  // e.g. "Audit Transcript"
+        List<Map<String, String>> s1Data = ExcelReader.readExcel(s1Path);
+        String transcriptLevel = s1Data.get(0).get("TranscriptLevel");
+        String transcriptType  = s1Data.get(0).get("TranscriptType");
         System.out.println("  → Level: " + transcriptLevel + ", Type: " + transcriptType);
 
         // ----------------------------------------------------------------
@@ -55,124 +51,112 @@ public class Scenario1_TranscriptTest extends BaseTest {
         ScreenShotUtil.takeScreenshot(driver, scenarioName, "01_NEU_Portal");
 
         // ----------------------------------------------------------------
-        // STEP 3: Microsoft login with NEU credentials
+        // STEP 3: Microsoft SSO login
         // ----------------------------------------------------------------
-        System.out.println("Step 3: Login with NEU credentials (Microsoft SSO)");
+        System.out.println("Step 3: Login (Microsoft SSO)");
         LoginPage loginPage = new LoginPage(driver);
         loginPage.login(fullEmail, password);
-        ScreenShotUtil.takeScreenshot(driver, scenarioName, "02_After_Credentials");
+        ScreenShotUtil.takeScreenshot(driver, scenarioName, "02_Credentials_Entered");
 
         loginPage.clickSignIn();
-        System.out.println("  → Sign in clicked, waiting for Duo...");
+        System.out.println("  → Waiting for Duo...");
 
         // ----------------------------------------------------------------
         // STEP 4: Duo 2FA
         // ----------------------------------------------------------------
-        System.out.println("Step 4: Waiting for Duo authentication");
+        System.out.println("Step 4: Duo authentication");
         longWait.until(ExpectedConditions.urlContains("duosecurity.com"));
         ScreenShotUtil.takeScreenshot(driver, scenarioName, "03_Duo_Page");
 
         loginPage.handleDuoDevicePrompt();
-        ScreenShotUtil.takeScreenshot(driver, scenarioName, "04_After_Duo");
-
         loginPage.handleStaySignedIn();
 
-        // Wait for Student Hub to load
         longWait.until(ExpectedConditions.urlContains("northeastern.edu"));
-        ScreenShotUtil.takeScreenshot(driver, scenarioName, "05_Student_Hub");
+        ScreenShotUtil.takeScreenshot(driver, scenarioName, "04_Student_Hub");
 
         Assert.assertTrue(driver.getCurrentUrl().contains("northeastern.edu"),
-                "Expected NEU portal but was: " + driver.getCurrentUrl());
+            "Not on Student Hub: " + driver.getCurrentUrl());
         System.out.println("  ✓ On Student Hub");
 
         // ----------------------------------------------------------------
-        // STEP 5: Click Resources tab
+        // STEP 5: Resources → Academics, Classes & Registration
         // ----------------------------------------------------------------
         System.out.println("Step 5: Click Resources tab");
-        TranscriptPage transcriptPage = new TranscriptPage(driver);
-        transcriptPage.clickResourcesTab();
-        ScreenShotUtil.takeScreenshot(driver, scenarioName, "06_Resources_Tab");
+        TranscriptPage tp = new TranscriptPage(driver);
+        tp.clickResourcesTab();
+        ScreenShotUtil.takeScreenshot(driver, scenarioName, "05_Resources");
 
-        // ----------------------------------------------------------------
-        // STEP 6: Click Academics, Classes & Registration
-        // ----------------------------------------------------------------
         System.out.println("Step 6: Click Academics, Classes & Registration");
-        transcriptPage.clickAcademicsCategory();
-        ScreenShotUtil.takeScreenshot(driver, scenarioName, "07_Academics_Category");
+        tp.clickAcademicsCategory();
+        ScreenShotUtil.takeScreenshot(driver, scenarioName, "06_Academics");
 
         // ----------------------------------------------------------------
-        // STEP 7: Click Unofficial Transcript — opens new tab with CAS login
+        // STEP 6: Click Unofficial Transcript → new tab → CAS login
         // ----------------------------------------------------------------
-        System.out.println("Step 7: Click Unofficial Transcript link");
+        System.out.println("Step 7: Click Unofficial Transcript");
         String originalTab = driver.getWindowHandle();
-        transcriptPage.clickUnofficialTranscript();
+        tp.clickUnofficialTranscript();
 
-        // Switch to new tab if it opened one
         try {
             longWait.until(d -> d.getWindowHandles().size() > 1);
-            transcriptPage.switchToNewTab(originalTab);
-            System.out.println("  → New tab URL: " + driver.getCurrentUrl());
+            tp.switchToNewTab(originalTab);
+            System.out.println("  → New tab: " + driver.getCurrentUrl());
         } catch (Exception e) {
-            System.out.println("  → No new tab, staying in same window");
+            System.out.println("  → Same tab: " + driver.getCurrentUrl());
         }
-        ScreenShotUtil.takeScreenshot(driver, scenarioName, "08_After_Transcript_Click");
+        ScreenShotUtil.takeScreenshot(driver, scenarioName, "07_Transcript_Tab");
 
         // ----------------------------------------------------------------
-        // STEP 8: Handle NEU CAS login (different from Microsoft login)
-        // Uses id="username" and id="password" — username is before @
-        // e.g. satramani.s@northeastern.edu → satramani.s
+        // STEP 7: CAS login (separate NEU SSO — not Microsoft)
         // ----------------------------------------------------------------
-        System.out.println("Step 8: Handle CAS login page");
-        transcriptPage.handleCasLogin(fullEmail, password);
-        ScreenShotUtil.takeScreenshot(driver, scenarioName, "09_After_CAS_Login");
+        System.out.println("Step 8: CAS login");
+        tp.handleCasLogin(fullEmail, password);
+        ScreenShotUtil.takeScreenshot(driver, scenarioName, "08_After_CAS");
 
-        // Wait for transcript page to load after CAS login
         longWait.until(ExpectedConditions.or(
-                ExpectedConditions.urlContains("StudentSelfService"),
-                ExpectedConditions.urlContains("transcript"),
-                ExpectedConditions.urlContains("nubanner")
+            ExpectedConditions.urlContains("StudentSelfService"),
+            ExpectedConditions.urlContains("nubanner")
         ));
-        ScreenShotUtil.takeScreenshot(driver, scenarioName, "10_Transcript_Page_Loaded");
+        ScreenShotUtil.takeScreenshot(driver, scenarioName, "09_Transcript_Page");
 
-        // Assert we are on the transcript page
         Assert.assertTrue(
-                driver.getCurrentUrl().contains("StudentSelfService")
-                || driver.getCurrentUrl().contains("transcript")
-                || driver.getCurrentUrl().contains("nubanner"),
-                "Expected transcript page but was: " + driver.getCurrentUrl());
+            driver.getCurrentUrl().contains("StudentSelfService")
+            || driver.getCurrentUrl().contains("nubanner"),
+            "Not on transcript page: " + driver.getCurrentUrl());
         System.out.println("  ✓ On transcript page");
 
         // ----------------------------------------------------------------
-        // STEP 9: Select Transcript Level and Type from Excel
+        // STEP 8: Select Graduate + Audit Transcript from Excel data
         // ----------------------------------------------------------------
         System.out.println("Step 9: Select Transcript Level and Type");
-        transcriptPage.selectTranscriptLevel(transcriptLevel);
-        ScreenShotUtil.takeScreenshot(driver, scenarioName, "11_Level_Selected");
+        tp.selectTranscriptLevel(transcriptLevel);
+        ScreenShotUtil.takeScreenshot(driver, scenarioName, "10_Level_Selected");
 
-        transcriptPage.selectTranscriptType(transcriptType);
-        ScreenShotUtil.takeScreenshot(driver, scenarioName, "12_Type_Selected");
+        tp.selectTranscriptType(transcriptType);
+        ScreenShotUtil.takeScreenshot(driver, scenarioName, "11_Type_Selected");
 
-        // Give the transcript content time to refresh after dropdown selection
         try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
 
-        // Assert transcript content is visible on page
-        String pageSource = driver.getPageSource();
+        // Assert transcript content visible
+        String src = driver.getPageSource();
         Assert.assertTrue(
-                pageSource.contains("Student Information")
-                || pageSource.contains("Curriculum Information")
-                || pageSource.contains("Sahil"),
-                "Transcript content not found on page after selecting level/type");
+            src.contains("Student Information") || src.contains("Curriculum"),
+            "Transcript content not found");
         System.out.println("  ✓ Transcript content verified");
-        ScreenShotUtil.takeScreenshot(driver, scenarioName, "13_Transcript_Verified");
+        ScreenShotUtil.takeScreenshot(driver, scenarioName, "12_Transcript_Content");
 
         // ----------------------------------------------------------------
-        // STEP 10: Right-click → Print → Save as PDF
-        // Uses Cmd+P keyboard shortcut → Enter (Save) → Enter (confirm)
+        // STEP 9: Save as PDF using CDP (saves to transcripts/ folder)
         // ----------------------------------------------------------------
-        System.out.println("Step 10: Save transcript as PDF (Cmd+P → Save)");
-        transcriptPage.printPageAsPdf();
-        ScreenShotUtil.takeScreenshot(driver, scenarioName, "14_After_PDF_Save");
+        System.out.println("Step 10: Save transcript as PDF");
+        tp.printPageAsPdf();
+        ScreenShotUtil.takeScreenshot(driver, scenarioName, "13_PDF_Saved");
 
-        System.out.println("✓ Scenario 1 PASSED: Transcript downloaded successfully");
+        // Assert PDF was created
+        File pdfFile = new File("transcripts/Academic_Transcript.pdf");
+        Assert.assertTrue(pdfFile.exists() && pdfFile.length() > 0,
+            "PDF file was not created");
+
+        System.out.println("✓ Scenario 1 PASSED: Transcript saved as PDF");
     }
 }
