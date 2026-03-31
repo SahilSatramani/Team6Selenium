@@ -12,101 +12,87 @@ import utils.ScreenShotUtil;
 
 import java.time.Duration;
 
-/**
- * Scenario 4 — negative dataset download test (inline Selenium flow; hardcoded OneSearch URL, no Excel).
- */
 public class Scenario4_DatasetDownloadTest extends BaseTest {
 
-    private static final String SCENARIO_FOLDER = "Scenario4";
+    private static final String SCENARIO_NAME = "Scenario4";
 
-    private void takeScreenshot(String scenarioName, String stepName) {
-        ScreenShotUtil.takeScreenshot(driver, scenarioName, stepName);
-    }
-
-    // This is a Negative Test — this test must fail!
-    @Test(description = "Scenario 4: Dataset download negative (must fail)")
-    public void testDownloadDatasetNegativeScenario() throws InterruptedException {
+    @Test(description = "Scenario 4: Dataset download negative test")
+    public void testDownloadDataset() throws InterruptedException {
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(20));
+        JavascriptExecutor js = (JavascriptExecutor) driver;
 
-        // Step 1: Open Scholar OneSearch page
+        // Step 1: Open Scholar OneSearch
         driver.get("https://onesearch.library.northeastern.edu/discovery/search?vid=01NEU_INST:NU&lang=en");
         Thread.sleep(2000);
-        takeScreenshot(SCENARIO_FOLDER, "01_open_onesearch");
+        ScreenShotUtil.takeScreenshot(driver, SCENARIO_NAME, "01_open_onesearch");
 
-        // Step 2: Click "Digital Repository Service" in the top navigation menu
+        // Step 2: Click Digital Repository Service
         try {
             WebElement drsLink = wait.until(ExpectedConditions.elementToBeClickable(
                     By.cssSelector("a[href*='reposit'] span.item-content")));
             Thread.sleep(1000);
-            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", drsLink);
+            js.executeScript("arguments[0].click();", drsLink);
             Thread.sleep(2000);
 
-            // Switch to the new tab that opened
             String newTab = "";
             for (String handle : driver.getWindowHandles()) {
                 newTab = handle;
             }
             driver.switchTo().window(newTab);
             Thread.sleep(2000);
-            takeScreenshot(SCENARIO_FOLDER, "02_click_drs");
+            ScreenShotUtil.takeScreenshot(driver, SCENARIO_NAME, "02_click_drs");
 
         } catch (Exception e) {
-            System.out.println("DRS link not found, trying backup selector: " + e.getMessage());
-            try {
-                WebElement drsLink = wait.until(ExpectedConditions.elementToBeClickable(
-                        By.xpath("//a[contains(@href,'repository.library')]")));
-                Thread.sleep(1000);
-                ((JavascriptExecutor) driver).executeScript("arguments[0].click();", drsLink);
-                Thread.sleep(2000);
-
-                // Switch to new tab
-                String newTab = "";
-                for (String handle : driver.getWindowHandles()) {
-                    newTab = handle;
-                }
-                driver.switchTo().window(newTab);
-                Thread.sleep(2000);
-                takeScreenshot(SCENARIO_FOLDER, "02_click_drs");
-
-            } catch (Exception e2) {
-                System.out.println("DRS backup also failed: " + e2.getMessage());
-                takeScreenshot(SCENARIO_FOLDER, "02_drs_not_found");
-            }
+            System.out.println("DRS link not found: " + e.getMessage());
+            ScreenShotUtil.takeScreenshot(driver, SCENARIO_NAME, "02_drs_not_found");
         }
 
-        // Step 3: Scroll down and click "Datasets" under Featured Content
+        // Step 3: Scroll to Datasets button and click
+        System.out.println("\n=== Step 3: Click Datasets ===");
+
         try {
-            ((JavascriptExecutor) driver).executeScript("window.scrollTo(0, 400)");
+            // Scroll to find Datasets button
+            js.executeScript("window.scrollTo(0, 400)");
             Thread.sleep(1000);
+
             WebElement datasetsBtn = wait.until(ExpectedConditions.elementToBeClickable(
                     By.cssSelector("a[href='/datasets']")));
-            ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", datasetsBtn);
+            js.executeScript("arguments[0].scrollIntoView(true);", datasetsBtn);
             Thread.sleep(1000);
-            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", datasetsBtn);
+
+            // Screenshot AFTER scroll, BEFORE click
+            ScreenShotUtil.takeScreenshot(driver, SCENARIO_NAME, "03_before_datasets_click");
+
+            js.executeScript("arguments[0].click();", datasetsBtn);
             Thread.sleep(2000);
-            takeScreenshot(SCENARIO_FOLDER, "03_click_datasets");
+
+            // Screenshot AFTER click
+            ScreenShotUtil.takeScreenshot(driver, SCENARIO_NAME, "04_after_datasets_click");
 
         } catch (Exception e) {
             System.out.println("Datasets button not found: " + e.getMessage());
-            takeScreenshot(SCENARIO_FOLDER, "03_datasets_not_found");
+            ScreenShotUtil.takeScreenshot(driver, SCENARIO_NAME, "03_datasets_not_found");
         }
 
-        // Step 4: Click "Zip File" button on the first dataset in the list
+        // Step 4: Try to download dataset
+        boolean downloadSucceeded = false;
+        ScreenShotUtil.takeScreenshot(driver, SCENARIO_NAME, "05_before_download_attempt");
         try {
             WebElement zipBtn = wait.until(ExpectedConditions.elementToBeClickable(
-                    By.cssSelector("a.btn-mini.btn-clear[title='Zip File']")));
-            ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", zipBtn);
+                    By.id("invalid_zip_button_12345")));
+            js.executeScript("arguments[0].scrollIntoView(true);", zipBtn);
             Thread.sleep(1000);
-            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", zipBtn);
+            js.executeScript("arguments[0].click();", zipBtn);
             Thread.sleep(2000);
-            takeScreenshot(SCENARIO_FOLDER, "04_click_zip_file");
+
+            downloadSucceeded = true;
+            ScreenShotUtil.takeScreenshot(driver, SCENARIO_NAME, "06_download_success");
 
         } catch (Exception e) {
-            System.out.println("Zip File button not found: " + e.getMessage());
-            takeScreenshot(SCENARIO_FOLDER, "04_zip_not_found");
+            System.out.println("Download failed: " + e.getMessage());
+            ScreenShotUtil.takeScreenshot(driver, SCENARIO_NAME, "06_download_failed");
         }
 
-        // This test must fail as required by the assignment (Negative Test)
-        Assert.fail("Negative Test Case: Unauthorized access to dataset download is not permitted.");
+        Assert.assertTrue(downloadSucceeded, "Dataset download did not complete");
     }
 }
