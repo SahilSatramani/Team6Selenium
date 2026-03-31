@@ -3,8 +3,15 @@ package pages;
 import org.openqa.selenium.*;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
+import org.openqa.selenium.chrome.ChromeDriver;
 
+import java.io.FileOutputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
 
 public class TranscriptPage {
     private WebDriver driver;
@@ -15,44 +22,38 @@ public class TranscriptPage {
     private By academicsCategory        = By.xpath("//span[normalize-space()='Academics, Classes & Registration']");
     private By unofficialTranscriptLink = By.xpath("//a[normalize-space()='Unofficial Transcript']");
 
-    // --- NEU CAS/SSO login page locators (different from Microsoft login) ---
-    // This page appears at /idp/profile/cas/login when transcript opens in new tab
+    // --- NEU CAS/SSO login page locators ---
     private By casUsernameField = By.id("username");
     private By casPasswordField = By.id("password");
     private By casLoginButton   = By.cssSelector("button[type='submit'][name='_eventId_proceed']");
 
     // --- Academic Transcript form locators (Angular ui-select dropdowns) ---
-    // These are NOT standard <select> — they are custom Angular components
     private By transcriptLevelDropdown = By.id("transcriptLevelSelection");
     private By transcriptTypeDropdown  = By.id("transcriptTypeSelection");
+
+    // Print button on transcript page
+    private By printButton = By.id("print");
 
     public TranscriptPage(WebDriver driver) {
         this.driver = driver;
         this.wait   = new WebDriverWait(driver, Duration.ofSeconds(20));
     }
 
-    // Click the Resources tab on Student Hub
     public void clickResourcesTab() {
-        WebElement el = wait.until(ExpectedConditions.elementToBeClickable(resourcesTab));
-        el.click();
+        wait.until(ExpectedConditions.elementToBeClickable(resourcesTab)).click();
         System.out.println("  → Clicked Resources tab");
     }
 
-    // Click Academics, Classes & Registration category
     public void clickAcademicsCategory() {
-        WebElement el = wait.until(ExpectedConditions.elementToBeClickable(academicsCategory));
-        el.click();
+        wait.until(ExpectedConditions.elementToBeClickable(academicsCategory)).click();
         System.out.println("  → Clicked Academics, Classes & Registration");
     }
 
-    // Click Unofficial Transcript link
     public void clickUnofficialTranscript() {
-        WebElement el = wait.until(ExpectedConditions.elementToBeClickable(unofficialTranscriptLink));
-        el.click();
+        wait.until(ExpectedConditions.elementToBeClickable(unofficialTranscriptLink)).click();
         System.out.println("  → Clicked Unofficial Transcript link");
     }
 
-    // Switch to a new tab/window that opened
     public void switchToNewTab(String originalHandle) {
         for (String handle : driver.getWindowHandles()) {
             if (!handle.equals(originalHandle)) {
@@ -64,11 +65,8 @@ public class TranscriptPage {
     }
 
     /**
-     * Handle the NEU CAS login page that appears when transcript opens.
-     * This is a DIFFERENT login page from Microsoft/Duo — it uses:
-     *   id="username" and id="password"
-     * The username must be only the part before @northeastern.edu
-     * e.g. "satramani.s@northeastern.edu" → "satramani.s"
+     * Handle NEU CAS login page — uses id="username" and id="password"
+     * Username is the part before @northeastern.edu
      */
     public void handleCasLogin(String fullEmail, String password) {
         try {
@@ -76,88 +74,70 @@ public class TranscriptPage {
             WebElement usernameEl = shortWait.until(
                 ExpectedConditions.visibilityOfElementLocated(casUsernameField));
 
-            // Extract username: everything before @northeastern.edu
             String username = fullEmail.contains("@")
                 ? fullEmail.substring(0, fullEmail.indexOf("@"))
                 : fullEmail;
 
-            System.out.println("  → CAS login page detected");
-            System.out.println("  → Entering CAS username: " + username);
-
+            System.out.println("  → CAS login detected, entering: " + username);
             usernameEl.clear();
             usernameEl.sendKeys(username);
 
-            WebElement passwordEl = wait.until(
-                ExpectedConditions.visibilityOfElementLocated(casPasswordField));
-            passwordEl.clear();
-            passwordEl.sendKeys(password);
-
-            WebElement loginBtn = wait.until(
-                ExpectedConditions.elementToBeClickable(casLoginButton));
-            loginBtn.click();
-            System.out.println("  → Clicked CAS Log In button");
+            wait.until(ExpectedConditions.visibilityOfElementLocated(casPasswordField))
+                .sendKeys(password);
+            wait.until(ExpectedConditions.elementToBeClickable(casLoginButton)).click();
+            System.out.println("  → Clicked CAS Log In");
 
         } catch (Exception e) {
-            System.out.println("  → CAS login page not detected, skipping: " + e.getMessage());
+            System.out.println("  → CAS login not detected: " + e.getMessage());
         }
     }
 
     /**
-     * Select a value from an Angular ui-select dropdown.
-     * These are NOT standard <select> elements — clicking the container
-     * opens the dropdown, then we click the option by visible text.
+     * Select from Angular ui-select dropdown by clicking container then option text
      */
     private void selectFromAngularDropdown(By containerLocator, String visibleText) {
-        WebElement container = wait.until(
-            ExpectedConditions.elementToBeClickable(containerLocator));
-        container.click();
+        wait.until(ExpectedConditions.elementToBeClickable(containerLocator)).click();
         System.out.println("  → Opened dropdown, looking for: " + visibleText);
-
         try { Thread.sleep(800); } catch (InterruptedException ignored) {}
 
-        WebElement option = wait.until(ExpectedConditions.elementToBeClickable(
+        wait.until(ExpectedConditions.elementToBeClickable(
             By.xpath("//div[contains(@class,'ui-select-choices')]" +
                      "//div[normalize-space(text())='" + visibleText + "']" +
                      " | //li[contains(@class,'ui-select-choices-row')]" +
-                     "//div[normalize-space()='" + visibleText + "']")));
-        option.click();
+                     "//div[normalize-space()='" + visibleText + "']"))).click();
         System.out.println("  → Selected: " + visibleText);
     }
 
-    // Select Transcript Level (e.g. "Graduate")
     public void selectTranscriptLevel(String level) {
         selectFromAngularDropdown(transcriptLevelDropdown, level);
-        System.out.println("  → Transcript Level set to: " + level);
         try { Thread.sleep(1000); } catch (InterruptedException ignored) {}
     }
 
-    // Select Transcript Type (e.g. "Audit Transcript")
     public void selectTranscriptType(String type) {
         selectFromAngularDropdown(transcriptTypeDropdown, type);
-        System.out.println("  → Transcript Type set to: " + type);
         try { Thread.sleep(1000); } catch (InterruptedException ignored) {}
     }
 
     /**
      * Save transcript as PDF using Chrome DevTools Protocol (CDP).
-     * executeCdpCommand is available on ChromeDriver directly.
-     * Saves PDF to transcripts/Academic_Transcript.pdf in project root.
+     * This saves the file directly to transcripts/Academic_Transcript.pdf
+     * without any print dialog interaction needed.
      */
     public void printPageAsPdf() {
         try {
             Thread.sleep(2000);
 
+            // Scroll to bottom so full page is captured
+            ((JavascriptExecutor) driver).executeScript(
+                "window.scrollTo(0, document.body.scrollHeight)");
+            Thread.sleep(1000);
+
             // Create output directory
-            String saveDir = "transcripts";
-            new java.io.File(saveDir).mkdirs();
-            String filePath = saveDir + "/Academic_Transcript.pdf";
+            new java.io.File("transcripts").mkdirs();
+            String filePath = "transcripts/Academic_Transcript.pdf";
 
-            // Cast to ChromeDriver to access executeCdpCommand
-            org.openqa.selenium.chrome.ChromeDriver chromeDriver =
-                (org.openqa.selenium.chrome.ChromeDriver) driver;
-
-            // Build CDP params for Page.printToPDF
-            java.util.Map<String, Object> params = new java.util.HashMap<>();
+            // Send CDP Page.printToPDF command
+            Map<String, Object> params = new HashMap<>();
             params.put("landscape", false);
             params.put("printBackground", true);
             params.put("paperWidth", 8.5);
@@ -167,38 +147,20 @@ public class TranscriptPage {
             params.put("marginLeft", 0.4);
             params.put("marginRight", 0.4);
 
-            System.out.println("  → Sending CDP Page.printToPDF command...");
-
-            // Execute CDP command — returns map with "data" key (base64 PDF)
             @SuppressWarnings("unchecked")
-            java.util.Map<String, Object> response =
-                (java.util.Map<String, Object>) chromeDriver
-                    .executeCdpCommand("Page.printToPDF", params);
+            Map<String, Object> response = (Map<String, Object>)
+                ((ChromeDriver) driver).executeCdpCommand("Page.printToPDF", params);
 
-            if (response == null || !response.containsKey("data")) {
-                System.err.println("  ✗ CDP response was null or missing 'data' key");
-                return;
-            }
+            // Decode base64 and write file
+            byte[] pdfBytes = Base64.getDecoder().decode((String) response.get("data"));
+            Files.write(Paths.get(filePath), pdfBytes);
 
-            // Decode base64 PDF and write to file
-            String base64Data = (String) response.get("data");
-            byte[] pdfBytes = java.util.Base64.getDecoder().decode(base64Data);
-            java.nio.file.Files.write(java.nio.file.Paths.get(filePath), pdfBytes);
+            java.io.File saved = new java.io.File(filePath);
+            System.out.println("  ✓ PDF saved: " + saved.getAbsolutePath()
+                + " (" + saved.length() + " bytes)");
 
-            // Verify file was actually created
-            java.io.File savedFile = new java.io.File(filePath);
-            if (savedFile.exists() && savedFile.length() > 0) {
-                System.out.println("  ✓ PDF saved: " + savedFile.getAbsolutePath()
-                    + " (" + savedFile.length() + " bytes)");
-            } else {
-                System.err.println("  ✗ PDF file was not created or is empty");
-            }
-
-        } catch (ClassCastException e) {
-            System.err.println("  ✗ Driver is not ChromeDriver: " + e.getMessage());
         } catch (Exception e) {
-            System.err.println("  ✗ CDP PDF save failed: " + e.getClass().getSimpleName()
-                + " - " + e.getMessage());
+            System.err.println("  ✗ PDF save failed: " + e.getMessage());
         }
     }
 }
