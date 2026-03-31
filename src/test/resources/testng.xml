@@ -5,6 +5,7 @@
     <test name="All Tests">
         <classes>
             <class name="tests.Scenario2_CalendarTest"/>
+            <class name="tests.Scenario3_LibraryTest"/>
         </classes>
     </test>
 </suite>
