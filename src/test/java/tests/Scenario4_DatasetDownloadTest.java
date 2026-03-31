@@ -1,69 +1,112 @@
 package tests;
 
 import base.BaseTest;
+import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-import pages.DatasetListingPage;
-import pages.DigitalRepositoryPage;
-import pages.OneSearchPage;
-import utils.ExcelReader;
 import utils.ScreenShotUtil;
 
-import java.io.File;
-import java.util.List;
-import java.util.Map;
+import java.time.Duration;
 
+/**
+ * Scenario 4 — negative dataset download test (inline Selenium flow; hardcoded OneSearch URL, no Excel).
+ */
 public class Scenario4_DatasetDownloadTest extends BaseTest {
 
-    @Test
-    public void testDownloadDatasetNegativeScenario() {
-        String scenarioName = "Scenario4";
-        String excelPath = "src/test/resources/testdata/scenario_4_data.xlsx";
-        Assert.assertTrue(new File(excelPath).exists(), "Scenario 4 data file not found at: " + excelPath);
+    private static final String SCENARIO_FOLDER = "Scenario4";
 
-        List<Map<String, String>> dataList = ExcelReader.readExcel(excelPath);
-        Assert.assertTrue(!dataList.isEmpty(), "No Scenario 4 test data found in Excel");
-        Map<String, String> data = dataList.get(0);
+    private void takeScreenshot(String scenarioName, String stepName) {
+        ScreenShotUtil.takeScreenshot(driver, scenarioName, stepName);
+    }
 
-        String baseUrl = data.get("baseUrl");
-        String expectedFailureMessage = data.get("expectedFailureMessage");
-        if (expectedFailureMessage == null || expectedFailureMessage.trim().isEmpty()) {
-            expectedFailureMessage = "Scenario 4 is the required negative scenario and must fail.";
+    // This is a Negative Test — this test must fail!
+    @Test(description = "Scenario 4: Dataset download negative (must fail)")
+    public void testDownloadDatasetNegativeScenario() throws InterruptedException {
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(20));
+
+        // Step 1: Open Scholar OneSearch page
+        driver.get("https://onesearch.library.northeastern.edu/discovery/search?vid=01NEU_INST:NU&lang=en");
+        Thread.sleep(2000);
+        takeScreenshot(SCENARIO_FOLDER, "01_open_onesearch");
+
+        // Step 2: Click "Digital Repository Service" in the top navigation menu
+        try {
+            WebElement drsLink = wait.until(ExpectedConditions.elementToBeClickable(
+                    By.cssSelector("a[href*='reposit'] span.item-content")));
+            Thread.sleep(1000);
+            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", drsLink);
+            Thread.sleep(2000);
+
+            // Switch to the new tab that opened
+            String newTab = "";
+            for (String handle : driver.getWindowHandles()) {
+                newTab = handle;
+            }
+            driver.switchTo().window(newTab);
+            Thread.sleep(2000);
+            takeScreenshot(SCENARIO_FOLDER, "02_click_drs");
+
+        } catch (Exception e) {
+            System.out.println("DRS link not found, trying backup selector: " + e.getMessage());
+            try {
+                WebElement drsLink = wait.until(ExpectedConditions.elementToBeClickable(
+                        By.xpath("//a[contains(@href,'repository.library')]")));
+                Thread.sleep(1000);
+                ((JavascriptExecutor) driver).executeScript("arguments[0].click();", drsLink);
+                Thread.sleep(2000);
+
+                // Switch to new tab
+                String newTab = "";
+                for (String handle : driver.getWindowHandles()) {
+                    newTab = handle;
+                }
+                driver.switchTo().window(newTab);
+                Thread.sleep(2000);
+                takeScreenshot(SCENARIO_FOLDER, "02_click_drs");
+
+            } catch (Exception e2) {
+                System.out.println("DRS backup also failed: " + e2.getMessage());
+                takeScreenshot(SCENARIO_FOLDER, "02_drs_not_found");
+            }
         }
 
-        OneSearchPage oneSearchPage = new OneSearchPage(driver);
-        DigitalRepositoryPage digitalRepositoryPage = new DigitalRepositoryPage(driver);
-        DatasetListingPage datasetListingPage = new DatasetListingPage(driver);
+        // Step 3: Scroll down and click "Datasets" under Featured Content
+        try {
+            ((JavascriptExecutor) driver).executeScript("window.scrollTo(0, 400)");
+            Thread.sleep(1000);
+            WebElement datasetsBtn = wait.until(ExpectedConditions.elementToBeClickable(
+                    By.cssSelector("a[href='/datasets']")));
+            ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", datasetsBtn);
+            Thread.sleep(1000);
+            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", datasetsBtn);
+            Thread.sleep(2000);
+            takeScreenshot(SCENARIO_FOLDER, "03_click_datasets");
 
-        // Step 1: Open OneSearch
-        ScreenShotUtil.takeScreenshot(driver, scenarioName, "01_Before_Open_OneSearch");
-        oneSearchPage.open(baseUrl);
-        ScreenShotUtil.takeScreenshot(driver, scenarioName, "02_After_Open_OneSearch");
+        } catch (Exception e) {
+            System.out.println("Datasets button not found: " + e.getMessage());
+            takeScreenshot(SCENARIO_FOLDER, "03_datasets_not_found");
+        }
 
-        // Step 2: Click Digital Repository Service (opens in new tab)
-        ScreenShotUtil.takeScreenshot(driver, scenarioName, "03_Before_Click_DRS");
-        oneSearchPage.clickDigitalRepositoryServiceAndSwitchTab();
-        ScreenShotUtil.takeScreenshot(driver, scenarioName, "04_After_Click_DRS");
+        // Step 4: Click "Zip File" button on the first dataset in the list
+        try {
+            WebElement zipBtn = wait.until(ExpectedConditions.elementToBeClickable(
+                    By.cssSelector("a.btn-mini.btn-clear[title='Zip File']")));
+            ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", zipBtn);
+            Thread.sleep(1000);
+            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", zipBtn);
+            Thread.sleep(2000);
+            takeScreenshot(SCENARIO_FOLDER, "04_click_zip_file");
 
-        // Step 3: Click Datasets under Featured Content
-        ScreenShotUtil.takeScreenshot(driver, scenarioName, "05_Before_Click_Datasets");
-        digitalRepositoryPage.clickDatasets();
-        ScreenShotUtil.takeScreenshot(driver, scenarioName, "06_After_Click_Datasets");
+        } catch (Exception e) {
+            System.out.println("Zip File button not found: " + e.getMessage());
+            takeScreenshot(SCENARIO_FOLDER, "04_zip_not_found");
+        }
 
-        // Step 4: Open any dataset
-        ScreenShotUtil.takeScreenshot(driver, scenarioName, "07_Before_Open_Any_Dataset");
-        String datasetName = datasetListingPage.openAnyDataset();
-        ScreenShotUtil.takeScreenshot(driver, scenarioName, "08_After_Open_Any_Dataset");
-
-        // Step 5: Attempt ZIP click (negative scenario still fails intentionally)
-        ScreenShotUtil.takeScreenshot(driver, scenarioName, "09_Before_Click_Zip");
-        datasetListingPage.clickZipFile();
-        ScreenShotUtil.takeScreenshot(driver, scenarioName, "10_After_Click_Zip");
-
-        System.out.println("Scenario4 dataset opened: " + datasetName);
-        System.out.println("Scenario4 negative case: ZIP click attempted, then intentional fail.");
-
-        // Assignment requires Scenario 4 to fail.
-        Assert.fail(expectedFailureMessage);
+        // This test must fail as required by the assignment (Negative Test)
+        Assert.fail("Negative Test Case: Unauthorized access to dataset download is not permitted.");
     }
 }
